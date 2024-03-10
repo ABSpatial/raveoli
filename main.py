@@ -2,6 +2,7 @@ import json
 import os
 
 import fiona
+import uvicorn
 from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
 from fastapi import FastAPI
 
@@ -42,3 +43,7 @@ def info(uri, security_params):
         meta.update(count=len(dataset))
         meta["crs"] = dataset.crs.to_string()
         return meta
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
