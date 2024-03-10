@@ -1,5 +1,7 @@
+import json
 import os
 
+import fiona
 from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
 from fastapi import FastAPI
 
@@ -17,3 +19,26 @@ add_exception_handlers(app, DEFAULT_STATUS_CODES)
 def ping():
     """Health check."""
     return {"ping": "pong!"}
+
+
+@app.get("/vector/bounds", description="Bounds of vector file")
+def bounds(uri, security_params):
+    """Health check."""
+    security_params = json.loads(security_params)
+    for k, v in security_params.items():
+        os.environ[k] = v
+    with fiona.open(uri) as dataset:
+        return {"bounds": dataset.bounds}
+
+
+@app.get("/vector/info", description="Bounds of vector file")
+def info(uri, security_params):
+    security_params = json.loads(security_params)
+    for k, v in security_params.items():
+        os.environ[k] = v
+    with fiona.open(uri) as dataset:
+        meta = dataset.meta
+        meta.update(bounds=dataset.bounds)
+        meta.update(count=len(dataset))
+        meta["crs"] = dataset.crs.to_string()
+        return meta
