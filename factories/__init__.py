@@ -43,11 +43,14 @@ from typing_extensions import Annotated
 # Custom Dataset Path dependency
 def DatasetPathParams(
     url: str = Query(..., description="Dataset URL"),
-    security_params: str = Query(..., description="Security key")
+    security_params: str = Query(None, description="Security key")
 ) -> list[Query]:
     """Create dataset path from args"""
 
-    return [url, security_params]
+    return {
+        'url': url,
+        'security_params': security_params
+    }
 
 @dataclass
 class TilerFactory(BaseTilerFactory):
@@ -129,11 +132,11 @@ class TilerFactory(BaseTilerFactory):
             reader_params=Depends(self.reader_dependency),
             env=Depends(self.environment_dependency),
         ):
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     return {"bounds": src_dst.geographic_bounds}
 
     ############################################################################
@@ -154,11 +157,11 @@ class TilerFactory(BaseTilerFactory):
             reader_params=Depends(self.reader_dependency),
             env=Depends(self.environment_dependency),
         ):
-            for k,v in json.loads(src_path[1]).items():
+            for k,v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     return src_dst.info()
 
         @self.router.get(
@@ -179,11 +182,11 @@ class TilerFactory(BaseTilerFactory):
             env=Depends(self.environment_dependency),
         ):
             """Return dataset's basic info as a GeoJSON feature."""
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     return Feature(
                         type="Feature",
                         geometry=Polygon.from_bounds(*src_dst.geographic_bounds),
@@ -220,11 +223,11 @@ class TilerFactory(BaseTilerFactory):
             env=Depends(self.environment_dependency),
         ):
             """Get Dataset statistics."""
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     image = src_dst.preview(
                         **layer_params,
                         **image_params,
@@ -274,11 +277,11 @@ class TilerFactory(BaseTilerFactory):
             if isinstance(fc, Feature):
                 fc = FeatureCollection(type="FeatureCollection", features=[geojson])
 
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     for feature in fc:
                         shape = feature.model_dump(exclude_none=True)
                         image = src_dst.feature(
@@ -378,11 +381,11 @@ class TilerFactory(BaseTilerFactory):
         ):
             """Create map tile from a dataset."""
             tms = self.supported_tms.get(tileMatrixSetId)
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     image = src_dst.tile(
                         x,
                         y,
@@ -493,11 +496,11 @@ class TilerFactory(BaseTilerFactory):
                 tiles_url += f"?{urlencode(qs)}"
 
             tms = self.supported_tms.get(tileMatrixSetId)
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     return {
                         "bounds": src_dst.geographic_bounds,
                         "minzoom": minzoom if minzoom is not None else src_dst.minzoom,
@@ -514,7 +517,7 @@ class TilerFactory(BaseTilerFactory):
             request: Request,
             src_path=Depends(self.path_dependency),
             tileMatrixSetId: Annotated[
-                Literal[tuple(self.supported_tms.list())],
+                Literal[tuple(TilerFactory.supported_tms.list())],
                 f"Identifier selecting one of the TileMatrixSetId supported (default: '{TilerFactory.default_tms}')",
             ] = self.default_tms,
             tile_format: Annotated[
@@ -639,11 +642,11 @@ class TilerFactory(BaseTilerFactory):
                 tiles_url += f"?{urlencode(qs)}"
 
             tms = self.supported_tms.get(tileMatrixSetId)
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     bounds = src_dst.geographic_bounds
                     minzoom = minzoom if minzoom is not None else src_dst.minzoom
                     maxzoom = maxzoom if maxzoom is not None else src_dst.maxzoom
@@ -702,11 +705,11 @@ class TilerFactory(BaseTilerFactory):
         ):
             """Get Point value for a dataset."""
 
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     pts = src_dst.point(
                         lon,
                         lat,
@@ -748,11 +751,11 @@ class TilerFactory(BaseTilerFactory):
             env=Depends(self.environment_dependency),
         ):
             """Create preview of a dataset."""
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     image = src_dst.preview(
                         **layer_params,
                         **image_params,
@@ -818,11 +821,11 @@ class TilerFactory(BaseTilerFactory):
             env=Depends(self.environment_dependency),
         ):
             """Create image from a bbox."""
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     image = src_dst.part(
                         [minx, miny, maxx, maxy],
                         dst_crs=dst_crs,
@@ -885,11 +888,11 @@ class TilerFactory(BaseTilerFactory):
             env=Depends(self.environment_dependency),
         ):
             """Create image from a geojson feature."""
-            for k, v in json.loads(src_path[1]).items():
+            for k, v in json.loads(src_path['security_params']).items():
                 os.environ[k] = v
             """Return dataset's basic info."""
             with rasterio.Env(**env):
-                with self.reader(src_path[0], **reader_params) as src_dst:
+                with self.reader(src_path['url'], **reader_params) as src_dst:
                     image = src_dst.feature(
                         geojson.model_dump(exclude_none=True),
                         shape_crs=coord_crs or WGS84_CRS,

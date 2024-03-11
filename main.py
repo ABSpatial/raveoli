@@ -23,20 +23,22 @@ def ping():
 
 
 @app.get("/vector/bounds", description="Bounds of vector file")
-def bounds(uri, security_params):
+def bounds(uri, security_params=None):
     """Health check."""
-    security_params = json.loads(security_params)
-    for k, v in security_params.items():
-        os.environ[k] = v
+    if not None:
+        security_params = json.loads(security_params)
+        for k, v in security_params.items():
+            os.environ[k] = v
     with fiona.open(uri) as dataset:
         return {"bounds": dataset.bounds}
 
 
 @app.get("/vector/info", description="Bounds of vector file")
-def info(uri, security_params):
-    security_params = json.loads(security_params)
-    for k, v in security_params.items():
-        os.environ[k] = v
+def info(uri, security_params=None):
+    if not None:
+        security_params = json.loads(security_params)
+        for k, v in security_params.items():
+            os.environ[k] = v
     with fiona.open(uri) as dataset:
         meta = dataset.meta
         meta.update(bounds=dataset.bounds)
