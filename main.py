@@ -1,7 +1,7 @@
 import json
 import os
 
-import fiona
+from pyogrio import read_info
 import uvicorn
 from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
 from fastapi import FastAPI
@@ -25,27 +25,58 @@ def ping():
 @app.get("/vector/bounds", description="Bounds of vector file")
 def bounds(uri, security_params=None):
     """Health check."""
-    if not None:
+    if security_params is not None:
         security_params = json.loads(security_params)
         for k, v in security_params.items():
             os.environ[k] = v
-    with fiona.open(uri) as dataset:
-        return {"bounds": dataset.bounds}
+    print(f'URI: {uri}')
+    return read_info(uri)['total_bounds']
+
+
+@app.get("/vector/crs", description="Bounds of vector file")
+def crs(uri, security_params=None):
+    """Health check."""
+    if security_params is not None:
+        security_params = json.loads(security_params)
+        for k, v in security_params.items():
+            os.environ[k] = v
+    return read_info(uri)['crs']
+
+@app.get("/vector/geometry_type", description="Bounds of vector file")
+def crs(uri, security_params=None):
+    """Health check."""
+    if security_params is not None:
+        security_params = json.loads(security_params)
+        for k, v in security_params.items():
+            os.environ[k] = v
+    return read_info(uri)['geometry_type']
+
+@app.get("/vector/fields", description="Bounds of vector file")
+def fields(uri, security_params=None):
+    """Health check."""
+    if security_params is not None:
+        security_params = json.loads(security_params)
+        for k, v in security_params.items():
+            os.environ[k] = v
+    return list(read_info(uri)['fields'])
 
 
 @app.get("/vector/info", description="Bounds of vector file")
 def info(uri, security_params=None):
-    if not None:
+    if security_params is not None:
         security_params = json.loads(security_params)
         for k, v in security_params.items():
             os.environ[k] = v
-    with fiona.open(uri) as dataset:
-        meta = dataset.meta
-        meta.update(bounds=dataset.bounds)
-        meta.update(count=len(dataset))
-        meta["crs"] = dataset.crs.to_string()
-        return meta
+    return str(read_info(uri))
 
+@app.get("/vector/driver", description="Bounds of vector file")
+def driver(uri, security_params=None):
+    """Health check."""
+    if security_params is not None:
+        security_params = json.loads(security_params)
+        for k, v in security_params.items():
+            os.environ[k] = v
+    return read_info(uri)['driver']
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
