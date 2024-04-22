@@ -1,5 +1,5 @@
-titiler
-fastapi
-fiona
-pyogrio
-uvicorn
+titiler==0.18.1
+fastapi==0.110.2
+fiona==1.9.6
+pyogrio==0.7.2
+uvicorn==0.29.0
