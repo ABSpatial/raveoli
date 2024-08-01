@@ -1,7 +1,9 @@
 import json
 import os
-
+import mercantile
+import tempfile
 import pyogrio
+from fastapi.responses import FileResponse
 from fastapi.openapi.models import Response
 from pyogrio import read_info, read_dataframe
 import uvicorn
@@ -86,37 +88,28 @@ def driver(uri, security_params=None):
 
 
 @app.get('/vector/tiles')
-def vector_tile(uri, z, x, y, security_params=None):
+def vector_tile(uri:str, z:int, x:int, y:int):
     """Serve vector tiles."""
-    if security_params is not None:
-        security_params = json.loads(security_params)
-        for k, v in security_params.items():
-            os.environ[k] = v
-    z,x,y = int(z), int(x), int(y)
     tile_bounds = tile_to_bounds(x, y, z)
 
-    tile_data = pyogrio.read_dataframe(uri, bbox=tile_bounds)
+    tile_data = pyogrio.read_dataframe(uri, bbox=(tile_bounds.west, tile_bounds.south, tile_bounds.east, tile_bounds.north))
     tile_geojson = json.loads(tile_data.to_json())
-    print(tile_geojson)
 
+    tile_geojson['name'] = 'default'
+
+    # Create a single layer with all the features
     mvt_data = mvt_encode(tile_geojson, quantize_bounds=None)
 
-    # Serve the MVT data as PBF
-    return Response(content=mvt_data, media_type='application/x-protobuf')
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(mvt_data)
+        temp_file_path = temp_file.name
+
+        # Serve the MVT data as a file using FileResponse
+    return FileResponse(path=temp_file_path, media_type='application/x-protobuf', filename=f'{z}_{x}_{y}.pbf')
 
 
 def tile_to_bounds(x, y, z):
-    # Convert tile coordinates to web mercator bounds
-    tile_size = 256
-    max_resolution = 156543.03392804097
-    origin_shift = 20037508.342789244
-    res = max_resolution / (2 ** z)
-    x_min = -origin_shift + x * tile_size * res
-    y_max = origin_shift - y * tile_size * res
-    x_max = -origin_shift + (x + 1) * tile_size * res
-    y_min = origin_shift - (y + 1) * tile_size * res
-    return (x_min, y_min, x_max, y_max)
-
+    return mercantile.bounds(mercantile.Tile(x=x, y=y, z=z))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
