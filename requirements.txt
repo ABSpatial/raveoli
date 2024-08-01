@@ -1,7 +1,8 @@
 titiler==0.18.1
 fastapi==0.110.2
 fiona==1.9.6
-pyogrio==0.7.2
+pyogrio
 uvicorn==0.29.0
 mapbox-vector-tile
 numpy<2
+geopandas
