@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from mapbox_vector_tile import encode as mvt_encode
 
 from factories import TilerFactory
+from utils import create_vector_tile
 
 app = FastAPI(title="TiVeTiler")
 
@@ -89,27 +90,13 @@ def driver(uri, security_params=None):
 
 @app.get('/vector/tiles')
 def vector_tile(uri:str, z:int, x:int, y:int):
-    """Serve vector tiles."""
-    tile_bounds = tile_to_bounds(x, y, z)
-
-    tile_data = pyogrio.read_dataframe(uri, bbox=(tile_bounds.west, tile_bounds.south, tile_bounds.east, tile_bounds.north))
-    tile_geojson = json.loads(tile_data.to_json())
-
-    tile_geojson['name'] = 'default'
-
-    # Create a single layer with all the features
-    mvt_data = mvt_encode(tile_geojson, quantize_bounds=None)
-
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file.write(mvt_data)
-        temp_file_path = temp_file.name
-
-        # Serve the MVT data as a file using FileResponse
-    return FileResponse(path=temp_file_path, media_type='application/x-protobuf', filename=f'{z}_{x}_{y}.pbf')
-
-
-def tile_to_bounds(x, y, z):
-    return mercantile.bounds(mercantile.Tile(x=x, y=y, z=z))
+    print('Creating vector tile...')
+    created_vector_tile = create_vector_tile(uri, z, x, y)
+    if created_vector_tile:
+        print('Successfully created vector tile, now sending to user...')
+    else:
+        return Response(status_code=404)
+    return FileResponse(path=created_vector_tile, filename=f'{z}_{x}_{y}.pbf')
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

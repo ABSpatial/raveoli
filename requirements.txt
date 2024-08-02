@@ -6,3 +6,8 @@ uvicorn==0.29.0
 mapbox-vector-tile
 numpy<2
 geopandas
+protobuf<3.20.0
+mercantile
+supermercado
+pyarrow
+requests
