@@ -1,13 +1,12 @@
 import os
-
-import pyogrio
-import requests
+import sqlite3
 import subprocess
 import uuid
-import sqlite3
+
 import mercantile
-from shapely.geometry import box
-from geojson2vt.geojson2vt import geojson2vt
+import pyogrio
+import requests
+from tqdm import tqdm
 
 
 class TippecanoeWrapper:
@@ -32,7 +31,6 @@ class TippecanoeWrapper:
         else:
             command = ["tippecanoe", "-o", self.output]
 
-
         if self.min_zoom is not None:
             command.extend(["--minimum-zoom", str(self.min_zoom)])
 
@@ -48,7 +46,6 @@ class TippecanoeWrapper:
         if self.input_file is not None:
             command.extend([self.input_file])
 
-        print(" ".join(command))
         try:
             subprocess.run(command, check=True)
             return self.output
@@ -57,12 +54,14 @@ class TippecanoeWrapper:
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
+
 def tile_to_bbox(z, x, y):
     """
     Convert tile coordinates to a bounding box.
     """
     tile_bounds = mercantile.bounds(mercantile.Tile(x=x, y=y, z=z))
     return tile_bounds.west, tile_bounds.south, tile_bounds.east, tile_bounds.north
+
 
 def tile_exists(layer, z, x, y):
     query = f"""
@@ -79,31 +78,48 @@ def tile_exists(layer, z, x, y):
             raise e
         else:
             tiles = cursor.fetchall()
-            print("Tiles", tiles)
     if tiles:
         return True
     else:
         return False
 
+
+def download(url: str, chunk_size=1024):
+    resp = requests.get(url, stream=True)
+    total = int(resp.headers.get('content-length', 0))
+    fname = resp.headers.get('content-disposition', os.path.basename(url))
+    with open(fname, 'wb') as file, tqdm(
+            desc=fname,
+            total=total,
+            unit='iB',
+            unit_scale=True,
+            unit_divisor=1024,
+    ) as bar:
+        for data in resp.iter_content(chunk_size=chunk_size):
+            size = file.write(data)
+            bar.update(size)
+    return fname
+
+
 def create_vector_tile(vector_path, z, x, y):
     layername = str(uuid.uuid4())
-    source_df = pyogrio.read_dataframe(vector_path, bbox=tile_to_bbox(z,x,y))
 
-    source_df.to_parquet(f"{layername}.parquet")
+    bbox_bbox = tile_to_bbox(z, x, y)
+    bbox = ",".join(map(str, bbox_bbox))
+
+    fname = download(vector_path)
 
     mbtiles_output = layername + '.mbtiles'
-    wrapper = TippecanoeWrapper(input_file=layername + '.parquet',
+    wrapper = TippecanoeWrapper(input_file=fname,
                                 output=mbtiles_output,
                                 output_to_directory=False,
                                 min_zoom=z,
                                 max_zoom=z,
-                                layer=layername)
+                                layer=layername,
+                                bbox=bbox)
     wrapper.run()
     if tile_exists(mbtiles_output, z, x, y):
-        os.remove(layername)
-        os.remove(f"{layername}.parquet")
+        os.remove(fname)
         return mbtiles_output
     else:
         return False
-
-print(create_vector_tile('lithotype.fgb', 0,0,0))

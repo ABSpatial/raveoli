@@ -1,13 +1,15 @@
 titiler==0.18.1
 fastapi==0.110.2
-fiona==1.9.6
+fiona
 pyogrio
 uvicorn==0.29.0
 mapbox-vector-tile
-numpy<2
+numpy
 geopandas
 protobuf<3.20.0
 mercantile
 supermercado
 pyarrow
 requests
+geojson2vt
+tqdm
