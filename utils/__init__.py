@@ -88,6 +88,8 @@ def download(url: str, chunk_size=1024):
     resp = requests.get(url, stream=True)
     total = int(resp.headers.get('content-length', 0))
     fname = resp.headers.get('content-disposition', os.path.basename(url))
+    if os.path.exists(fname):
+        return fname
     with open(fname, 'wb') as file, tqdm(
             desc=fname,
             total=total,
